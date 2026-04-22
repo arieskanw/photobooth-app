@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:image/image.dart' as img;
@@ -7,29 +8,34 @@ import '../../config/app_config.dart';
 enum PrinterConnectionType { bluetooth, usb }
 enum PrinterStatus { disconnected, connecting, connected, printing, error }
 
-class PrinterManager {
+class PrinterManager extends ChangeNotifier {
   PrinterConnectionType _connectionType = PrinterConnectionType.bluetooth;
   PrinterStatus _status = PrinterStatus.disconnected;
 
   PrinterStatus get status => _status;
+
+  void _setStatus(PrinterStatus s) {
+    _status = s;
+    notifyListeners();
+  }
 
   Future<List<BluetoothInfo>> scanBluetooth() async {
     return await PrintBluetoothThermal.pairedBluetooths;
   }
 
   Future<bool> connectBluetooth(String macAddress) async {
-    _status = PrinterStatus.connecting;
+    _setStatus(PrinterStatus.connecting);
     final result = await PrintBluetoothThermal.connect(
       macPrinterAddress: macAddress,
     );
-    _status = result ? PrinterStatus.connected : PrinterStatus.error;
+    _setStatus(result ? PrinterStatus.connected : PrinterStatus.error);
     _connectionType = PrinterConnectionType.bluetooth;
     return result;
   }
 
   Future<bool> disconnect() async {
     final result = await PrintBluetoothThermal.disconnect;
-    _status = PrinterStatus.disconnected;
+    _setStatus(PrinterStatus.disconnected);
     return result;
   }
 
@@ -40,7 +46,7 @@ class PrinterManager {
   /// Print composed photo image + auto cut
   Future<bool> printPhoto(img.Image composedImage) async {
     try {
-      _status = PrinterStatus.printing;
+      _setStatus(PrinterStatus.printing);
 
       final profile = await CapabilityProfile.load();
       final generator = Generator(PaperSize.mm80, profile);
@@ -64,10 +70,10 @@ class PrinterManager {
 
       // Send in chunks to avoid BT buffer overflow
       final success = await _sendInChunks(Uint8List.fromList(bytes));
-      _status = success ? PrinterStatus.connected : PrinterStatus.error;
+      _setStatus(success ? PrinterStatus.connected : PrinterStatus.error);
       return success;
     } catch (e) {
-      _status = PrinterStatus.error;
+      _setStatus(PrinterStatus.error);
       return false;
     }
   }
