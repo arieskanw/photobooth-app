@@ -59,3 +59,4 @@ class DatabaseConnection {
 // test comment
 // retrigger
 // trigger v3
+// trigger v4 - model fix
